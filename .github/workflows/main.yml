@@ -1,0 +1,73 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create the Android project
+        run: npx cap add android
+
+      - name: Apply Chami's icon, splash screen, name and colours
+        run: |
+          RES=android/app/src/main/res
+          rm -rf "$RES"/mipmap-anydpi-v26
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            mkdir -p "$RES/mipmap-$d"
+            cp resources/android/mipmap-$d/*.png "$RES/mipmap-$d/"
+          done
+          find "$RES" -name 'splash.png' -delete
+          mkdir -p "$RES/drawable" "$RES/drawable-nodpi" "$RES/values"
+          cp resources/android/drawable/splash.xml "$RES/drawable/"
+          cp resources/android/drawable-nodpi/splash_logo.png "$RES/drawable-nodpi/"
+          cp resources/android/values/*.xml "$RES/values/"
+
+      - name: Copy the website into the app
+        run: npx cap sync android
+
+      - name: Build the APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Rename the APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Chamis-House-of-Food.apk
+
+      - name: Save the APK as a build download
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chamis-House-of-Food-APK
+          path: Chamis-House-of-Food.apk
+
+      - name: Publish the APK on the Releases page
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Chami's APK build ${{ github.run_number }}
+          body: Debug build of the Chami's House of Food app. Download the .apk below and open it on an Android phone.
+          files: Chamis-House-of-Food.apk
