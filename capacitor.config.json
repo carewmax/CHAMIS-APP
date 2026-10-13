@@ -1,0 +1,9 @@
+{
+  "appId": "com.chamis.houseoffood",
+  "appName": "Chamis",
+  "webDir": "www",
+  "backgroundColor": "#0a0908",
+  "android": {
+    "allowMixedContent": false
+  }
+}
